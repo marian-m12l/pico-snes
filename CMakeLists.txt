@@ -26,7 +26,7 @@ pico_sdk_init()
 add_executable(pico-snes main.c
                )
 
-# FIXME pico_generate_pio_header(pico-snes ${CMAKE_CURRENT_LIST_DIR}/snes.pio)
+pico_generate_pio_header(pico-snes ${CMAKE_CURRENT_LIST_DIR}/snes.pio)
 pico_set_program_name(pico-snes "pico-snes")
 pico_set_program_version(pico-snes "0.1")
 
@@ -39,6 +39,8 @@ target_link_libraries(pico-snes pico_stdlib)
 # Add any user requested libraries
 target_link_libraries(pico-snes
                       hardware_timer
+                      hardware_pio
+                      hardware_dma
                      )
 
 pico_add_extra_outputs(pico-snes)

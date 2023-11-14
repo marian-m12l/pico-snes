@@ -1,0 +1,54 @@
+; This program polls snes controller continuously
+
+.program snes
+    ; Clock starts HIGH
+    ; Latch HIGH for 12 us
+    set pins, 0b11 [2]      ; Latch HIGH, stall for another 2 cycles (9us)
+    set x, 15               ; 3us
+    ; Latch LOW
+    set pins, 0b01 [1]      ; Stall for another cycle (6us)
+    ; Read state
+    loop:
+        ; We have already been waiting for 6 us (with clock HIGH)
+        ; Clock LOW for 6 us
+        set pins, 0b00      ; 3us
+        ; Read Data into ISR
+        in pins, 1          ; 3us
+        ; Clock HIGH for 6 us
+        set pins, 0b01      ; 3us
+        ; Repeat until all 16 bits have been read
+        jmp x--, loop       ; 3us
+    ; ISR is autopushed into FIFO
+.wrap
+
+
+% c-sdk {
+
+void snes_program_init(PIO pio, uint sm, uint offset, uint pin) {
+    // Pins configuration
+    uint clock = pin;
+    uint latch = pin + 1;
+    uint data = pin + 2;
+    
+    pio_gpio_init(pio, latch);
+    pio_gpio_init(pio, clock);
+
+    pio_sm_set_consecutive_pindirs(pio, sm, clock, 2, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, data, 1, false);
+
+    // State-machine configuration
+    pio_sm_config c = snes_program_get_default_config(offset);
+
+    sm_config_set_set_pins(&c, clock, 2);
+    sm_config_set_in_pins(&c, data);
+
+    // Auto-push ISR into RX FIFO every 16 bits
+    sm_config_set_in_shift(&c, false, true, 16);
+
+    // Set state-machine clock to 3us per cycle --> 333333 Hz
+    sm_config_set_clkdiv(&c, 375.000375);
+    
+    pio_sm_init(pio, sm, offset, &c);
+}
+
+%}
